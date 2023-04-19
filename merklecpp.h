@@ -101,10 +101,10 @@ namespace merkle
     }
 
     /// @brief Constructs a Hash from a byte buffer
-    /// @param bytes Buffer with hash value
-    HashT<SIZE>(const uint8_t* bytes)
+    /// @param bytes_ Buffer with hash value
+    HashT<SIZE>(const uint8_t* bytes_)
     {
-      std::copy(bytes, bytes + SIZE, this->bytes);
+      std::copy(bytes_, bytes_ + SIZE, this->bytes);
     }
 
     /// @brief Constructs a Hash from a string
@@ -121,30 +121,34 @@ namespace merkle
       }
     }
 
-    /// @brief Deserialises a Hash from a vector of bytes
-    /// @param bytes Vector to read the hash value from
-    HashT<SIZE>(const std::vector<uint8_t>& bytes)
-    {
-      if (bytes.size() < SIZE)
-        throw std::runtime_error("not enough bytes");
-      deserialise(bytes);
+    HashT<SIZE>(const HashT<SIZE>& other) {
+      std::copy(other.bytes, other.bytes + SIZE, bytes);
     }
 
     /// @brief Deserialises a Hash from a vector of bytes
-    /// @param bytes Vector to read the hash value from
-    /// @param position Position of the first byte in @p bytes
-    HashT<SIZE>(const std::vector<uint8_t>& bytes, size_t& position)
+    /// @param bytes_ Vector to read the hash value from
+    HashT<SIZE>(const std::vector<uint8_t>& bytes_)
     {
-      if (bytes.size() - position < SIZE)
+      if (bytes_.size() < SIZE)
         throw std::runtime_error("not enough bytes");
-      deserialise(bytes, position);
+      deserialise(bytes_);
+    }
+
+    /// @brief Deserialises a Hash from a vector of bytes
+    /// @param bytes_ Vector to read the hash value from
+    /// @param position Position of the first byte in @p bytes
+    HashT<SIZE>(const std::vector<uint8_t>& bytes_, size_t& position)
+    {
+      if (bytes_.size() - position < SIZE)
+        throw std::runtime_error("not enough bytes");
+      deserialise(bytes_, position);
     }
 
     /// @brief Deserialises a Hash from an array of bytes
-    /// @param bytes Array to read the hash value from
-    HashT<SIZE>(const std::array<uint8_t, SIZE>& bytes)
+    /// @param bytes_ Array to read the hash value from
+    HashT<SIZE>(const std::array<uint8_t, SIZE>& bytes_)
     {
-      std::copy(bytes.data(), bytes.data() + SIZE, this->bytes);
+      std::copy(bytes_.data(), bytes_.data() + SIZE, this->bytes);
     }
 
     /// @brief The size of the hash (in number of bytes)
@@ -232,9 +236,9 @@ namespace merkle
     /// @brief Conversion operator to vector of bytes
     operator std::vector<uint8_t>() const
     {
-      std::vector<uint8_t> bytes;
-      serialise(bytes);
-      return bytes;
+      std::vector<uint8_t> bytes_;
+      serialise(bytes_);
+      return bytes_;
     }
   };
 
@@ -270,19 +274,19 @@ namespace merkle
     } Element;
 
     /// @brief Path constructor
-    /// @param leaf
-    /// @param leaf_index
-    /// @param elements
-    /// @param max_index
+    /// @param leaf 1 2 3
+    /// @param leaf_index 1312
+    /// @param elements_ 1 31
+    /// @param max_index 1312
     PathT(
       const HashT<HASH_SIZE>& leaf,
       size_t leaf_index,
-      std::list<Element>&& elements,
+      std::list<Element>&& elements_,
       size_t max_index) :
       _leaf(leaf),
       _leaf_index(leaf_index),
       _max_index(max_index),
-      elements(elements)
+      elements(elements_)
     {}
 
     /// @brief Path copy constructor
@@ -744,6 +748,12 @@ namespace merkle
     void insert(const uint8_t* hash)
     {
       insert(Hash(hash));
+    }
+
+
+    void insert(const std::string& s)
+    {
+      insert(Hash(s));
     }
 
     /// @brief Inserts a hash into the tree
@@ -1550,7 +1560,7 @@ namespace merkle
           for (auto n : level)
           {
             stream << (n->dirty ? dirty_hash : n->hash.to_string(num_bytes));
-            stream << "(" << n->size << "," << (unsigned)n->height << ")";
+            stream << "(" << n->size << "," << static_cast<unsigned>(n->height) << ")";
             if (n->left)
               next_level.push_back(n->left);
             if (n->right)
@@ -1845,7 +1855,7 @@ namespace merkle
     uint32_t cws[64] = {0};
 
     for (int i=0; i < 16; i++)
-      cws[i] = convert_endianness(((int32_t *)block)[i]);
+      cws[i] = convert_endianness((reinterpret_cast<int32_t *>(block))[i]);
 
     for (int i = 16; i < 64; i++) {
       uint32_t t16 = cws[i - 16];
@@ -1876,8 +1886,12 @@ namespace merkle
       h[7] = g0;
     }
 
+    uint32_t out_[8];
+
     for (int i=0; i < 8; i++)
-      ((uint32_t*)out.bytes)[i] = convert_endianness(s[i] + h[i]);
+      out_[i] = convert_endianness(s[i] + h[i]);
+
+    std::memcpy(out_, out.bytes, 8 * sizeof(uint32_t));
   }
   // clang-format on
 
