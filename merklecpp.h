@@ -1891,7 +1891,7 @@ namespace merkle
     for (int i=0; i < 8; i++)
       out_[i] = convert_endianness(s[i] + h[i]);
 
-    std::memcpy(out_, out.bytes, 8 * sizeof(uint32_t));
+    std::memcpy(out.bytes, out_, 8 * sizeof(uint32_t));
   }
   // clang-format on
 
